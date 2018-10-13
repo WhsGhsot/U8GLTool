@@ -1,0 +1,365 @@
+﻿<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<style type="text/css">
+
+    .section_title
+    {
+        text-align: center;
+        font-size: 20px;
+        color:#A8A8A8;
+    }
+    .section_server,.section_tools,.section_detail
+    {
+        margin-left: 30%;
+    }
+    button
+    {
+        margin-left: 10px;
+    }
+    .operition
+    {
+        margin-left: 20%;
+    }
+    thead
+    {
+        align: center;
+        color:#D5B959;
+    }
+    tr td:nth-child(1)
+    {
+        width: 100px;
+    }
+    td{
+        text-align: center;
+    }
+
+</style>
+<script type="text/javascript">
+    var ipConfig='127.0.0.1'
+    var cookieUtil={
+        get: function (name) {
+            var cookieName=encodeURIComponent(name)+'=',
+                    cookieStart=document.cookie.indexOf(cookieName),
+                    cookieValue=null;
+            if(cookieStart>-1)
+            {
+                var cookieEnd=document.cookie.indexOf(';',cookieStart);
+                if(cookieEnd==-1)
+                {
+                    cookieEnd=document.cookie.length;
+                }
+                cookieValue=decodeURIComponent(document.cookie.substring(cookieStart+cookieName.length,cookieEnd));
+            }
+            return cookieValue;
+        },
+        set:function(name,value)
+        {
+            var cookieText=encodeURIComponent(name)+"="+encodeURIComponent(value);
+            document.cookie=cookieText;
+        }
+    }
+    /*加载页面后调用函数*/
+    function  load()
+    {
+        var serName=cookieUtil.get('serName');
+        var serPas=cookieUtil.get('serPas');
+        ipConfig=cookieUtil.get('ip')==null?'127.0.0.1':cookieUtil.get('ip');
+        (document.getElementsByName("serName")[0]).value=serName;
+        (document.getElementsByName("serPas")[0]).value=serPas;
+        (document.getElementById('ip')).value=ipConfig;
+
+        /*初始化禁用所有按钮*/
+        var button=document.getElementsByTagName('button');
+        for(var i=0;i<button.length;i++)
+        {
+            button[i].disabled='disabled';
+        }
+}
+    /*url字符串连接*/
+    function addURLParam(url,name,value)
+    {
+        url+=(url.indexOf('?')==-1?'?':'&');
+        url+=encodeURIComponent(name)+'='+encodeURIComponent(value);
+        return url;
+    }
+    /*服务器连接函数*/
+    function  connServer()
+    {
+        //得到服务器IP
+        var ip=(document.getElementById("ip")).value;
+        if(ip=="")
+        {
+            alert('请输入服务器IP');
+            return;
+        }
+        //将Ip地址加入cookie
+        cookieUtil.set('ip',ip);
+
+        var serName=(document.getElementsByName("serName")[0]).value;
+        var serPas=(document.getElementsByName("serPas")[0]).value;
+        serPas=serPas==""?"空":serPas;
+        serName=serName==""?"空":serName;
+        var xhr=new XMLHttpRequest();
+        var url="http://"+ip+":8080/cgi-bin/Server.py";
+        url=addURLParam(url,'flag','connServer');
+        url=addURLParam(url,'serName',serName);
+        url=addURLParam(url,'serPas',serPas);
+        xhr.open("get",url,false);
+        xhr.send(null);
+        //转换json字符串 serObj:{'ufdata':ufdata}
+        var responseText=xhr.responseText;
+
+        if(responseText.trim()!='fail')
+        {
+            //设置cookie
+            cookieUtil.set('serName',serName=='空'?'':serName);
+            cookieUtil.set('serPas',serPas=='空'?'':serPas);
+            //禁用服务器配置项
+            (document.getElementsByName("serName")[0]).disabled="disabled";
+            (document.getElementsByName("serPas")[0]).disabled="disabled";
+            (document.getElementById('ip')).disabled='disabled';
+            var serObj=eval(responseText);
+            return  serObj;
+        }
+        else
+            return false;
+    }
+    /*点击源账套时触发函数*/
+    function selSouData()
+    {
+        var serObj=connServer();
+        var sourceSel=document.getElementById('source');
+        var targetSel=document.getElementById('target');
+        if(serObj==false)
+        {
+            alert('请确认服务器配置项正确');
+        }
+        else
+        {
+
+            //清除单击事件
+            (document.getElementsByTagName("select")[0]).onclick=null;
+            serObj.forEach(function (item,index,arr) {
+                var option=document.createElement("option");
+                var option_2=document.createElement("option");
+                option.value=item;
+                option.text=item;
+                option_2.value=item;
+                option_2.text=item;
+                sourceSel.appendChild(option_2);
+                targetSel.appendChild(option);
+
+                //使按钮可用
+                var button=document.getElementsByTagName('button');
+                for(var i=0;i<button.length;i++)
+                {
+                    button[i].disabled='';
+                }
+            })
+        }
+    }
+    /*点击凭证导入时触发函数*/
+    function book()
+    {
+
+        //flag为标记
+        //取得select选择的源数据库和目的数据库
+        var source=document.getElementById("source");
+        var target=document.getElementById("target");
+        var sourceDatabase=source.value;
+        var targetDatabase=target.value;
+
+        //取得年月
+        var month=document.getElementById('month');
+        var iyear=(month.value).split('-')[0];
+        var imonth=(month.value).split('-')[1];
+        if(iyear==""||imonth==undefined)
+        {
+            alert('请选择年月...');
+            return;
+        }
+        /*得到ino_id的操作*/
+        var url="http://"+ipConfig+":8080/cgi-bin/Server.py";
+        var serName=cookieUtil.get('serName');
+        var serPas=cookieUtil.get('serPas')==""?"空":cookieUtil.get('serPas');
+        url=addURLParam(url,'serName',serName);
+        url=addURLParam(url,'serPas',serPas);
+        url=addURLParam(url,'sourceDatabase',sourceDatabase);
+        url=addURLParam(url,'targetDatabase',targetDatabase);
+        url=addURLParam(url,'iyear',iyear);
+        url=addURLParam(url,'iperiod',imonth);
+        url=addURLParam(url,'flag','ino_ids');
+
+
+
+        var xhr=new XMLHttpRequest();
+        xhr.open("get",url,false);
+        xhr.send(null)
+        //返回{"bookAll":"总数","ino_ids":[账套的inoid]}
+        var response=xhr.responseText;
+        var ino_ids="";
+        if(response.trim()!='fail')
+        {
+            ino_ids=eval(response);
+        }
+        else
+        {
+            alert('源账套的起始年月无效,请核对....');
+            return;
+        }
+
+        var all=ino_ids.length;
+        var bookAll=document.getElementById("bookAll");
+        var bookCopy=document.getElementById("bookCopy");
+        bookAll.innerHTML="共"+all+"张凭证"
+        //凭证复制成功或失败的标志 flag="success"为成功  "fail"为失败
+        var flag="success";
+        ino_ids.forEach(function (item,index,arr) {
+            /*插入凭证的操作*/
+            var url="http://"+ipConfig+":8080/cgi-bin/Server.py";
+            var serName=cookieUtil.get('serName');
+            var serPas=cookieUtil.get('serPas')==""?"空":cookieUtil.get('serPas');
+            url=addURLParam(url,'serName',serName);
+            url=addURLParam(url,'serPas',serPas);
+            url=addURLParam(url,'sourceDatabase',sourceDatabase);
+            url=addURLParam(url,'targetDatabase',targetDatabase);
+            url=addURLParam(url,'iyear',iyear);
+            url=addURLParam(url,'iperiod',imonth);
+            url=addURLParam(url,'flag','copy');
+            //复制凭证
+            bookCopy.innerHTML="正在复制第"+ parseInt(index+1)+"张凭证"
+            url=addURLParam(url,'ino_id',item);
+            var  xhr= new XMLHttpRequest();
+            xhr.open('get',url,false);
+            xhr.send(null);
+            var info=xhr.responseText;
+            if(info=="fail")
+            {
+                flag="fail";
+                alert("由于目标账套档案缺失,凭证复制失败，请勾选“缺省档案复制按钮”");
+                return;
+            }
+        });
+        if(flag=="success")
+        {
+            alert("凭证复制成功....");
+        }
+    }
+    /*点击异常清理时触发函数*/
+    function clearEx()
+    {
+        if(confirm("确认目标账套其他凭证已经记账?"))
+        {
+            var target=document.getElementById("target");
+            var targetDatabase=target.value;
+            var xhr=new XMLHttpRequest();
+            var url="http://127.0.0.1:8080/cgi-bin/Server.py"
+            var serName=cookieUtil.get('serName');
+            var serPas=cookieUtil.get('serPas')==""?"空":cookieUtil.get('serPas');
+
+            url=addURLParam(url,'serName',serName);
+            url=addURLParam(url,'serPas',serPas);
+            url=addURLParam(url,'targetDatabase',targetDatabase);
+            url=addURLParam(url,'flag','clear')
+            xhr.open("get",url,false);
+            xhr.send(null);
+            var info=xhr.responseText;
+            if(info.trim()=="success")
+            {
+                alert("异常清理成功....")
+            }
+            else
+            {
+                alert("异常清理失败....")
+            }
+        }
+
+
+    }
+
+   /*档案导入*/
+    function fileData(e)
+    {
+
+        var style= e.id;
+        var xhr=new XMLHttpRequest();
+        var url="http://"+ipConfig+":8080/cgi-bin/Server.py";
+        var source=document.getElementById("source");
+        var target=document.getElementById("target");
+        var sourceDatabase=source.value;
+        var targetDatabase=target.value;
+        var flag=null;
+        var serName=cookieUtil.get('serName');
+        var serPas=cookieUtil.get('serPas')==""?"空":cookieUtil.get('serPas');
+        url=addURLParam(url,'serName',serName);
+        url=addURLParam(url,'serPas',serPas);
+
+        switch(style)
+        {
+            case 'code':flag='codeInput';break;
+            case 'customer':flag='customerInput';break;
+            case 'vendor':flag='vendorInput';break;
+            case 'person':flag='personInput';break;
+            case 'department':flag='departmentInput';break;
+        }
+
+        url=addURLParam(url,'sourceDatabase',sourceDatabase);
+        url=addURLParam(url,'targetDatabase',targetDatabase);
+        url=addURLParam(url,'flag',flag);
+        xhr.open('get',url,false);
+        xhr.send(null);
+        var status=xhr.responseText;
+        if(status.trim()!='fail')
+        {
+            alert('导入成功');
+        }
+        else
+        {
+            alert('导入失败');
+        }
+    }
+</script>
+<body onload="load()">
+<div class="main">
+    <section class="section_title">自助工具</section>
+    <!---服务器配置项-->
+    <section class="section_server">
+        <table class="server">
+            <thead><tr><th  colspan="2">服务器配置</th></tr></thead>
+            <tr><td>服务器IP:</td><td><input  id="ip" placeholder="请输入服务器IP" /></td></tr>
+            <tr><td>数据库实例:</td><td><input name="serName" placeholder="请输入数据库实例" /></td></tr>
+            <tr><td>数据库密码:</td><td><input name="serPas" placeholder="请输入数据库密码" /></td></tr>
+
+            <thead><tr><th colspan="2">数据操作</th></tr></thead>
+            <tr><td>数据源:</td><td>
+                <select  onclick="selSouData()"  id="source">
+
+                </select>
+            </td></tr>
+            <tr>
+                <td>目标数据:</td><td><select  id="target">
+
+            </select></td>
+            </tr>
+            <tr><td>年度-月份:</td><td><input type="month" id="month"></td></tr>
+            <tr>
+                <td id="bookAll"></td>
+                <td id="bookCopy"></td>
+            </tr>
+        </table>
+    </section>
+    <section class="operition">
+        <button  onclick="book()">凭证导入</button><button onclick="clearEx()">异常清理</button>
+        <button onclick="fileData(this)" id="code">会计科目导入</button>
+        <button onclick="fileData(this)" id="customer">客户档案导入</button>
+        <button onclick="fileData(this)" id="vendor">供应商档案导入</button>
+        <button onclick="fileData(this)" id="department">部门档案导入</button>
+        <button onclick="fileData(this)" id="person">人员档案导入</button>
+    </section>
+</div>
+</body>
+</html>
